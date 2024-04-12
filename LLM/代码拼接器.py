@@ -79,6 +79,10 @@ class ConcatenateApp:
                 tk.messagebox.showerror("错误", f"无法读取文件 {file_path}:\n{e}")
                 self.file_paths.remove(file_path)  # 移除无法读取的文件
 
+        # 文本复制到粘贴板
+        self.master.clipboard_clear()
+        self.master.clipboard_append(self.text_area.get('1.0', tk.END))
+
 if __name__ == '__main__':
     root = tk.Tk()
     app = ConcatenateApp(root)
