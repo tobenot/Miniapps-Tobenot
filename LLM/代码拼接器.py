@@ -68,20 +68,26 @@ class ConcatenateApp:
     def update_content(self):
         self.text_area.delete('1.0', tk.END)  # 清空文本框内容
 
+        all_content = ""  # 初始化一个空字符串，用于存储所有文件内容
+
         for file_path in self.file_paths:
             try:
                 # 利用codecs模块打开文件，指定编码为utf-8
                 with codecs.open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
                     content = file.read()
-                    content = "\n" + self.prefix_entry.get() + "\n" + content + "\n" + self.suffix_entry.get() + "\n"
-                    self.text_area.insert(tk.END, content + '\n\n')
+                    all_content += content + "\n\n"  # 将当前文件内容追加到all_content，并添加换行以分隔不同文件的内容
             except Exception as e:
                 tk.messagebox.showerror("错误", f"无法读取文件 {file_path}:\n{e}")
                 self.file_paths.remove(file_path)  # 移除无法读取的文件
 
+        # 在所有文件内容前后分别添加前缀和后缀
+        all_content = self.prefix_entry.get() + "\n" + all_content + self.suffix_entry.get()
+
+        self.text_area.insert(tk.END, all_content)  # 将最终内容显示在文本框中
+
         # 文本复制到粘贴板
         self.master.clipboard_clear()
-        self.master.clipboard_append(self.text_area.get('1.0', tk.END))
+        self.master.clipboard_append(all_content)
 
 if __name__ == '__main__':
     root = tk.Tk()
