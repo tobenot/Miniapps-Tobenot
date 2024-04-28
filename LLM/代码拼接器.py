@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 import codecs
 from tkinter import filedialog, scrolledtext, Entry, Label, Button, Frame, messagebox
 from os.path import basename
@@ -39,10 +40,18 @@ class ConcatenateApp:
         self.suffix_entry.grid(row=4, column=1, padx=10, pady=2, sticky='we')
         self.suffix_entry.insert(0, "请你向我解释以上代码的结构。")
 
-        # 文件名显示框架
+        # 文件名显示框架，修改部分开头
         self.file_names_frame = Frame(master)
-        self.file_names_frame.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky='w')
+        self.file_names_frame.grid(row=5, column=0, columnspan=2, padx=10, pady=5, sticky='nsew')
+        
+        self.scrollbar = tk.Scrollbar(self.file_names_frame) # 使用tk.Scrollbar
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y) # 使用tk的方向常量
 
+        self.file_listbox = tk.Listbox(self.file_names_frame, yscrollcommand=self.scrollbar.set) # 使用tk.Listbox
+        self.file_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.config(command=self.file_listbox.yview)
+        
+        self.file_paths = []
         master.columnconfigure(1, weight=1)
         master.rowconfigure(1, weight=1)
         
@@ -59,9 +68,7 @@ class ConcatenateApp:
             self.file_paths.extend(file_paths)
 
             for file_path in file_paths:
-                file_label = Label(self.file_names_frame, text=basename(file_path))
-                file_label.pack(anchor="w")
-                self.file_labels.append(file_label)
+                self.file_listbox.insert(tk.END, basename(file_path)) # 使用tk.END
 
             self.update_content()
 
