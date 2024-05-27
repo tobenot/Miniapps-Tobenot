@@ -61,7 +61,7 @@ class ConcatenateApp:
     def add_files(self):
         file_paths = filedialog.askopenfilenames(
             title='选择文件',
-            filetypes=(('C++ Source Files', '*.cpp;*.h'), ('All Files', '*.*'))
+            filetypes=(('All Files', '*.*'), ('C++ Source Files', '*.cpp;*.h'))
         )
 
         if file_paths:
@@ -79,10 +79,10 @@ class ConcatenateApp:
 
         for file_path in self.file_paths:
             try:
-                # 利用codecs模块打开文件，指定编码为utf-8
+                file_name = basename(file_path)  # 提取文件名
                 with codecs.open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
                     content = file.read()
-                    all_content += content + "\n\n"  # 将当前文件内容追加到all_content，并添加换行以分隔不同文件的内容
+                    all_content += f"# {file_name}\n{content}\n\n"  # 将文件名添加到文件内容前
             except Exception as e:
                 tk.messagebox.showerror("错误", f"无法读取文件 {file_path}:\n{e}")
                 self.file_paths.remove(file_path)  # 移除无法读取的文件
