@@ -1,6 +1,15 @@
 # 需要安装以下依赖:
 # pip install PyQt6 pandas matplotlib seaborn
 
+# 色板
+# <palette>
+#   <color name="Space cadet" hex="22223b" r="34" g="34" b="59" />
+#   <color name="Ultra Violet" hex="4a4e69" r="74" g="78" b="105" />
+#   <color name="Rose quartz" hex="9a8c98" r="154" g="140" b="152" />
+#   <color name="Pale Dogwood" hex="c9ada7" r="201" g="173" b="167" />
+#   <color name="Isabelline" hex="f2e9e4" r="242" g="233" b="228" />
+# </palette>
+
 import sys
 import json
 import os
@@ -8,20 +17,120 @@ from datetime import datetime, timedelta
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QLabel, QPushButton, QDateEdit, 
                             QTimeEdit, QCalendarWidget, QTableWidget, 
-                            QTableWidgetItem, QMessageBox)
+                            QTableWidgetItem, QMessageBox, QSpinBox)  # 添加QSpinBox
 from PyQt6.QtCore import Qt, QDate, QTime
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
+
+class TimeInputWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.hour_spin = QSpinBox()
+        self.hour_spin.setRange(0, 23)
+        self.hour_spin.setWrapping(True)
+        self.hour_spin.setFixedWidth(60)
+        
+        self.minute_spin = QSpinBox()
+        self.minute_spin.setRange(0, 59)
+        self.minute_spin.setWrapping(True)
+        self.minute_spin.setFixedWidth(60)
+        
+        colon_label = QLabel(":")
+        
+        layout.addWidget(self.hour_spin)
+        layout.addWidget(colon_label)
+        layout.addWidget(self.minute_spin)
+        
+        # 设置样式
+        self.setStyleSheet("""
+            QSpinBox {
+                padding: 5px;
+                border: 2px solid #9a8c98;
+                border-radius: 5px;
+                background: white;
+            }
+            QSpinBox::up-button, QSpinBox::down-button {
+                width: 20px;
+            }
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                margin: 0 5px;
+            }
+        """)
+    
+    def setTime(self, hour, minute):
+        self.hour_spin.setValue(hour)
+        self.minute_spin.setValue(minute)
+    
+    def time(self):
+        return QTime(self.hour_spin.value(), self.minute_spin.value())
 
 class SleepTracker(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("睡眠记录助手 😴")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 900, 650)
+        
+        # 获取脚本所在目录
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # 更新应用全局样式
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #f2e9e4;  /* Isabelline */
+            }
+            QWidget {
+                font-family: 'Microsoft YaHei', '微软雅黑', Arial;
+                font-size: 14px;
+            }
+            QPushButton {
+                background-color: #4a4e69;  /* Ultra Violet */
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                min-width: 120px;
+                font-family: 'Microsoft YaHei', '微软雅黑', Arial;
+            }
+            QPushButton:hover {
+                background-color: #22223b;  /* Space cadet */
+            }
+            QLabel {
+                color: #22223b;  /* Space cadet */
+                font-weight: bold;
+            }
+            QDateEdit, QTimeEdit {
+                padding: 5px;
+                border: 2px solid #9a8c98;  /* Rose quartz */
+                border-radius: 5px;
+                background: white;
+            }
+            QTableWidget {
+                background-color: white;
+                alternate-background-color: #f2e9e4;  /* Isabelline */
+                border: 1px solid #c9ada7;  /* Pale Dogwood */
+                border-radius: 5px;
+                gridline-color: #c9ada7;  /* Pale Dogwood */
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background-color: #4a4e69;  /* Ultra Violet */
+                color: white;
+                padding: 8px;
+                border: none;
+            }
+        """)
         
         # 数据文件路径
-        self.data_file = "sleep_data.json"
+        self.data_file = os.path.join(self.script_dir, "sleep_data.json")
         self.load_data()
         
         # 调整后的每日成就系统
@@ -49,53 +158,102 @@ class SleepTracker(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
         
-        # 添加数据区域
-        input_layout = QHBoxLayout()
+        # 添加标题
+        title_label = QLabel("记录今日睡眠 💤")
+        title_label.setStyleSheet("""
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            padding: 10px;
+        """)
+        layout.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        # 输入区域容器
+        input_container = QWidget()
+        input_container.setStyleSheet("""
+            QWidget {
+                background-color: white;
+                border: 1px solid #c9ada7;  /* Pale Dogwood */
+                border-radius: 10px;
+                padding: 15px;
+            }
+        """)
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setSpacing(20)
         
         # 日期选择
+        date_widget = QWidget()
+        date_layout = QVBoxLayout(date_widget)
+        date_label = QLabel("日期:")
         self.date_edit = QDateEdit()
         self.date_edit.setDate(QDate.currentDate())
-        input_layout.addWidget(QLabel("日期:"))
-        input_layout.addWidget(self.date_edit)
+        date_layout.addWidget(date_label)
+        date_layout.addWidget(self.date_edit)
+        input_layout.addWidget(date_widget)
         
         # 睡眠时间
-        self.sleep_time = QTimeEdit()
-        self.sleep_time.setTime(QTime(23, 0))
-        input_layout.addWidget(QLabel("睡眠时间:"))
-        input_layout.addWidget(self.sleep_time)
+        sleep_widget = QWidget()
+        sleep_layout = QVBoxLayout(sleep_widget)
+        sleep_label = QLabel("睡眠时间:")
+        self.sleep_time = TimeInputWidget()
+        self.sleep_time.setTime(23, 0)  # 设置默认时间
+        sleep_layout.addWidget(sleep_label)
+        sleep_layout.addWidget(self.sleep_time)
+        input_layout.addWidget(sleep_widget)
         
         # 起床时间
-        self.wake_time = QTimeEdit()
-        self.wake_time.setTime(QTime(7, 0))
-        input_layout.addWidget(QLabel("起床时间:"))
-        input_layout.addWidget(self.wake_time)
-        
+        wake_widget = QWidget()
+        wake_layout = QVBoxLayout(wake_widget)
+        wake_label = QLabel("起床时间:")
+        self.wake_time = TimeInputWidget()
+        self.wake_time.setTime(7, 0)  # 设置默认时间
+        wake_layout.addWidget(wake_label)
+        wake_layout.addWidget(self.wake_time)
+        input_layout.addWidget(wake_widget)
         # 添加按钮
         add_btn = QPushButton("添加记录 ✍️")
         add_btn.clicked.connect(self.add_record)
-        input_layout.addWidget(add_btn)
+        add_btn.setStyleSheet("color: #22223b;")  # 设置按钮文字颜色为Space cadet
+        input_layout.addWidget(add_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         
-        layout.addLayout(input_layout)
+        layout.addWidget(input_container)
         
-        # 数据显示表格
+        # 表格样式优化
         self.table = QTableWidget()
-        self.table.setColumnCount(5)  # 增加一列显示成就
+        self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["日期", "睡眠时间", "起床时间", "睡眠时长", "获得成就"])
+        self.table.setAlternatingRowColors(True)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setVisible(False)
         layout.addWidget(self.table)
         
-        # 功能按钮
-        btn_layout = QHBoxLayout()
+        # 功能按钮区域
+        btn_container = QWidget()
+        btn_container.setStyleSheet("""
+            QWidget {
+                background-color: white;
+                border: 1px solid #c9ada7;  /* Pale Dogwood */
+                border-radius: 10px;
+                padding: 10px;
+            }
+        """)
+        btn_layout = QHBoxLayout(btn_container)
+        btn_layout.setSpacing(15)
         
         generate_report_btn = QPushButton("生成报告 📊")
         generate_report_btn.clicked.connect(self.generate_report)
+        generate_report_btn.setStyleSheet("color: #22223b;")  # 设置按钮文字颜色为Space cadet
         btn_layout.addWidget(generate_report_btn)
         
         view_achievements_btn = QPushButton("查看成就 🏆")
         view_achievements_btn.clicked.connect(self.view_achievements)
+        view_achievements_btn.setStyleSheet("color: #22223b;")  # 设置按钮文字颜色为Space cadet
         btn_layout.addWidget(view_achievements_btn)
         
-        layout.addLayout(btn_layout)
+        layout.addWidget(btn_container)
         
         self.update_table()
         
@@ -285,16 +443,23 @@ class SleepTracker(QMainWindow):
             self.table.setItem(i, 4, QTableWidgetItem(achievements_text))
 
     def view_achievements(self):
+        # 统计已获得的成就
+        achieved_counts = {}
+        for record in self.sleep_data:
+            for achievement_name, emoji in record["achievements"]:
+                achieved_counts[achievement_name] = achieved_counts.get(achievement_name, 0) + 1
+        
         message = "🏆 成就系统 🏆\n\n"
         for name, achievement in self.daily_achievements.items():
-            status = "✅" if achievement["achieved"] else "❌"
-            message += f"{status} {name}: {achievement['description']}\n"
+            count = achieved_counts.get(name, 0)
+            status = f"✅ (x{count})" if count > 0 else "❌"
+            message += f"{achievement['emoji']} {name}: {achievement['description']} {status}\n"
         
         QMessageBox.information(self, "成就系统", message)
         
     def generate_report(self):
         if not self.sleep_data:
-            QMessageBox.warning(self, "警告", "没有用的睡眠数据！")
+            QMessageBox.warning(self, "警告", "没有可用的睡眠数据！")
             return
             
         df = pd.DataFrame(self.sleep_data)
@@ -310,44 +475,114 @@ class SleepTracker(QMainWindow):
         plt.ylabel('睡眠时长（小时）')
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig('sleep_trend.png')
+        plt.savefig(os.path.join(self.script_dir, 'sleep_trend.png'))
         
+        # 创建睡眠时间分布热力图
+        plt.figure(figsize=(12, 6))
+
+        # 将睡眠时间转换为小时和分钟
+        def time_to_float(time_str):
+            hour, minute = map(int, time_str.split(':'))
+            # 如果是凌晨时间（0-6点），加24小时以便于展示
+            if hour < 6:
+                hour += 24
+            return hour + minute/60
+
+        # 准备热力图数据
+        df['sleep_hour'] = df['sleep_time'].apply(time_to_float)
+        df['wake_hour'] = df['wake_time'].apply(time_to_float)
+        df['weekday'] = df['date'].dt.strftime('%A')  # 获取星期几
+
+        # 创建星期几的有序列表
+        weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        sleep_matrix = np.zeros((7, 24))  # 7天 x 24小时
+
+        # 统计每个时间段的睡眠频率
+        for _, row in df.iterrows():
+            day_idx = weekdays.index(row['weekday'])
+            sleep_hour = int(row['sleep_hour'])
+            wake_hour = int(row['wake_hour'])
+            
+            # 处理跨天的情况
+            if wake_hour > 24:
+                wake_hour = wake_hour % 24
+            
+            # 标记睡眠时间
+            if sleep_hour >= 24:
+                sleep_hour = sleep_hour % 24
+            sleep_matrix[day_idx, sleep_hour] += 1
+
+        # 绘制热力图
+        plt.figure(figsize=(15, 8))
+        sns.heatmap(sleep_matrix, 
+                    xticklabels=range(24),
+                    yticklabels=weekdays,
+                    cmap='YlOrRd',
+                    cbar_kws={'label': '睡眠频率'})
+
+        plt.title('睡眠时间分布热力图')
+        plt.xlabel('小时')
+        plt.ylabel('星期')
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.script_dir, 'sleep_heatmap.png'))
+
         # 生成更详细的Markdown报告
-        report = f"""# 睡眠记录报告 😴
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        report = f"""---
+title: 睡眠记录报告
+date: {current_time}
+tags:
+    - 睡眠记录
+    - 健康管理
+categories: 生活记录
+---
+
+# 睡眠记录报告 😴
 
 ## 统计概要 📊
-- 记录天数: {len(df)} 天
-- 平均睡眠时长: {df['duration_hours'].mean():.2f} 小时
-- 最长睡眠: {df['duration_hours'].max():.2f} 小时
-- 最短睡眠: {df['duration_hours'].min():.2f} 小时
+
+| 指标 | 数值 |
+|------|------|
+| 记录天数 | {len(df)} 天 |
+| 平均睡眠时长 | {df['duration_hours'].mean():.2f} 小时 |
+| 最长睡眠 | {df['duration_hours'].max():.2f} 小时 |
+| 最短睡眠 | {df['duration_hours'].min():.2f} 小时 |
 
 ## 成就统计 🏆
+
+| 成就 | 获得次数 |
+|------|----------|
 """
         # 统计各类成就获得次数
         achievement_counts = {}
         for record in self.sleep_data:
-            for _, emoji in record["achievements"]:
-                achievement_counts[emoji] = achievement_counts.get(emoji, 0) + 1
+            for name, emoji in record["achievements"]:
+                key = f"{emoji} {name}"
+                achievement_counts[key] = achievement_counts.get(key, 0) + 1
         
-        for emoji, count in achievement_counts.items():
-            report += f"{emoji} x{count} "
+        for achievement, count in achievement_counts.items():
+            report += f"| {achievement} | {count} |\n"
         
-        report += "\n## 所有睡眠记录 📝\n"
+        report += "\n## 详细睡眠记录 📝\n\n"
+        report += "| 日期 | 睡眠时间 | 起床时间 | 睡眠时长 | 成就 |\n"
+        report += "|------|----------|----------|----------|----------|\n"
+        
         # 按日期排序
         df_sorted = df.sort_values('date', ascending=False)
         for i, record in df_sorted.iterrows():
             idx = df_sorted.index.get_loc(i)
             achievements_text = " ".join(emoji for _, emoji in self.sleep_data[idx]["achievements"])
-            report += f"- {record['date'].strftime('%Y-%m-%d')}: "
-            report += f"睡眠 {self.sleep_data[idx]['sleep_time']} → "
-            report += f"起床 {self.sleep_data[idx]['wake_time']} "
-            report += f"({record['duration_hours']:.2f}小时) "
-            report += f"{achievements_text}\n"
+            report += f"| {record['date'].strftime('%Y-%m-%d')} "
+            report += f"| {self.sleep_data[idx]['sleep_time']} "
+            report += f"| {self.sleep_data[idx]['wake_time']} "
+            report += f"| {record['duration_hours']:.2f}小时 "
+            report += f"| {achievements_text} |\n"
             
-        with open('sleep_report.md', 'w', encoding='utf-8') as f:
+        report_path = os.path.join(self.script_dir, 'sleep_report.md')
+        with open(report_path, 'w', encoding='utf-8') as f:
             f.write(report)
             
-        QMessageBox.information(self, "成功", "报告已生成！ 📊\n请查看 sleep_report.md 文件")
+        QMessageBox.information(self, "成功", f"报告已生成！ 📊\n请查看 {report_path} 文件")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
