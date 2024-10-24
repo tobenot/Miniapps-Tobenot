@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QLabel, QPushButton, QDateEdit, 
                             QTimeEdit, QCalendarWidget, QTableWidget, 
-                            QTableWidgetItem, QMessageBox, QSpinBox)  # 添加QSpinBox
+                            QTableWidgetItem, QMessageBox, QSpinBox, QLineEdit)  # 添加QSpinBox和QLineEdit
 from PyQt6.QtCore import Qt, QDate, QTime
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -219,12 +219,31 @@ class SleepTracker(QMainWindow):
         add_btn.setStyleSheet("color: #22223b;")  # 设置按钮文字颜色为Space cadet
         input_layout.addWidget(add_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         
+        # 备注输入
+        note_widget = QWidget()
+        note_layout = QVBoxLayout(note_widget)
+        note_label = QLabel("备注:")
+        self.note_edit = QLineEdit()  # 添加这个类导入
+        self.note_edit.setPlaceholderText("添加今日睡眠备注...")  # 设置占位符文本
+        self.note_edit.setStyleSheet("""
+            QLineEdit {
+                padding: 5px;
+                border: 2px solid #9a8c98;
+                border-radius: 5px;
+                background: white;
+                min-width: 200px;
+            }
+        """)
+        note_layout.addWidget(note_label)
+        note_layout.addWidget(self.note_edit)
+        input_layout.addWidget(note_widget)
+        
         layout.addWidget(input_container)
         
         # 表格样式优化
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["日期", "睡眠时间", "起床时间", "睡眠时长", "获得成就"])
+        self.table.setColumnCount(6)  # 改为6列
+        self.table.setHorizontalHeaderLabels(["日期", "睡眠时间", "起床时间", "睡眠时长", "获得成就", "备注"])
         self.table.setAlternatingRowColors(True)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().setVisible(False)
@@ -288,7 +307,8 @@ class SleepTracker(QMainWindow):
             "sleep_time": sleep_time,
             "wake_time": wake_time,
             "duration": str(duration),
-            "achievements": achieved
+            "achievements": achieved,
+            "note": self.note_edit.text()  # 添加备注
         }
         
         self.sleep_data.append(record)
@@ -429,8 +449,8 @@ class SleepTracker(QMainWindow):
         
     def update_table(self):
         self.table.setRowCount(len(self.sleep_data))
-        self.table.setColumnCount(5)  # 增加一列显示成就
-        self.table.setHorizontalHeaderLabels(["日期", "睡眠时间", "起床时间", "睡眠时长", "获得成就"])
+        self.table.setColumnCount(6)  # 改为6列
+        self.table.setHorizontalHeaderLabels(["日期", "睡眠时间", "起床时间", "睡眠时长", "获得成就", "备注"])
         
         for i, record in enumerate(self.sleep_data):
             self.table.setItem(i, 0, QTableWidgetItem(record["date"]))
@@ -441,6 +461,10 @@ class SleepTracker(QMainWindow):
             # 显示成就图标
             achievements_text = " ".join(emoji for _, emoji in record["achievements"])
             self.table.setItem(i, 4, QTableWidgetItem(achievements_text))
+            
+            # 显示备注
+            note = record.get("note", "")  # 使用get方法避免旧数据没有note字段的情况
+            self.table.setItem(i, 5, QTableWidgetItem(note))
 
     def view_achievements(self):
         # 统计已获得的成就
@@ -564,19 +588,21 @@ categories: 生活记录
             report += f"| {achievement} | {count} |\n"
         
         report += "\n## 详细睡眠记录 📝\n\n"
-        report += "| 日期 | 睡眠时间 | 起床时间 | 睡眠时长 | 成就 |\n"
-        report += "|------|----------|----------|----------|----------|\n"
+        report += "| 日期 | 睡眠时间 | 起床时间 | 睡眠时长 | 成就 | 备注 |\n"
+        report += "|------|----------|----------|----------|----------|----------|\n"
         
         # 按日期排序
         df_sorted = df.sort_values('date', ascending=False)
         for i, record in df_sorted.iterrows():
             idx = df_sorted.index.get_loc(i)
             achievements_text = " ".join(emoji for _, emoji in self.sleep_data[idx]["achievements"])
+            note = self.sleep_data[idx].get("note", "")  # 获取备注
             report += f"| {record['date'].strftime('%Y-%m-%d')} "
             report += f"| {self.sleep_data[idx]['sleep_time']} "
             report += f"| {self.sleep_data[idx]['wake_time']} "
             report += f"| {record['duration_hours']:.2f}小时 "
-            report += f"| {achievements_text} |\n"
+            report += f"| {achievements_text} "
+            report += f"| {note} |\n"
             
         report_path = os.path.join(self.script_dir, 'sleep_report.md')
         with open(report_path, 'w', encoding='utf-8') as f:
