@@ -17,7 +17,8 @@ from datetime import datetime, timedelta
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QLabel, QPushButton, QDateEdit, 
                             QTimeEdit, QCalendarWidget, QTableWidget, 
-                            QTableWidgetItem, QMessageBox, QSpinBox, QLineEdit)  # 添加QSpinBox和QLineEdit
+                            QTableWidgetItem, QMessageBox, QSpinBox, QLineEdit, 
+                            QTabWidget, QGroupBox, QScrollArea)  # 添加QSpinBox和QLineEdit
 from PyQt6.QtCore import Qt, QDate, QTime
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -155,7 +156,7 @@ class SleepTracker(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("睡眠记录助手 😴")
-        self.setGeometry(100, 100, 900, 650)
+        self.setGeometry(100, 100, 800, 600)  # 调整为更小的窗口大小
         
         # 获取脚本所在目录
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -237,122 +238,177 @@ class SleepTracker(QMainWindow):
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
         
         # 添加标题
-        title_label = QLabel("记录今日睡眠 💤")
+        title_label = QLabel("睡眠记录助手 💤")
         title_label.setStyleSheet("""
-            font-size: 24px;
-            color: #2c3e50;
-            margin-bottom: 10px;
+            font-size: 28px;
+            color: #22223b;
+            margin-bottom: 15px;
             padding: 10px;
+            font-weight: bold;
         """)
-        layout.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignCenter)
         
-        # 输入区域容器
-        input_container = QWidget()
-        input_container.setStyleSheet("""
-            QWidget {
-                background-color: white;
-                border: 1px solid #c9ada7;  /* Pale Dogwood */
+        # 创建选项卡
+        tab_widget = QTabWidget()
+        tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #c9ada7;
                 border-radius: 10px;
-                padding: 15px;
+                background: white;
+                padding: 10px;
+            }
+            QTabBar::tab {
+                background: #f2e9e4;
+                border: 1px solid #c9ada7;
+                padding: 10px 15px;
+                margin-right: 2px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+            }
+            QTabBar::tab:selected {
+                background: #4a4e69;
+                color: white;
             }
         """)
-        input_layout = QHBoxLayout(input_container)
+        
+        # 添加记录标签页
+        record_tab = QWidget()
+        record_layout = QVBoxLayout(record_tab)
+        
+        # 创建记录输入组
+        input_group = QGroupBox("添加睡眠记录")
+        input_group.setStyleSheet("""
+            QGroupBox {
+                font-size: 16px;
+                font-weight: bold;
+                border: 2px solid #c9ada7;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 20px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
+        """)
+        
+        input_layout = QHBoxLayout(input_group)
         input_layout.setSpacing(20)
         
-        # 日期选择
-        date_widget = QWidget()
-        date_layout = QVBoxLayout(date_widget)
-        date_label = QLabel("日期:")
-        self.date_edit = DateInputWidget()  # 使用新的 DateInputWidget
+        # 日期选择组
+        date_group = QGroupBox("日期")
+        date_layout = QVBoxLayout(date_group)
+        self.date_edit = DateInputWidget()
         self.date_edit.setDate(QDate.currentDate())
-        date_layout.addWidget(date_label)
         date_layout.addWidget(self.date_edit)
-        input_layout.addWidget(date_widget)
+        input_layout.addWidget(date_group)
         
-        # 睡眠时间
+        # 时间选择组
+        time_group = QGroupBox("时间")
+        time_layout = QHBoxLayout(time_group)
+        
         sleep_widget = QWidget()
         sleep_layout = QVBoxLayout(sleep_widget)
         sleep_label = QLabel("睡眠时间:")
         self.sleep_time = TimeInputWidget()
-        self.sleep_time.setTime(23, 0)  # 设置默认时间
+        self.sleep_time.setTime(0, 0)
         sleep_layout.addWidget(sleep_label)
         sleep_layout.addWidget(self.sleep_time)
-        input_layout.addWidget(sleep_widget)
         
-        # 起床时间
         wake_widget = QWidget()
         wake_layout = QVBoxLayout(wake_widget)
         wake_label = QLabel("起床时间:")
         self.wake_time = TimeInputWidget()
-        self.wake_time.setTime(7, 0)  # 设置默认时间
+        self.wake_time.setTime(8, 0)
         wake_layout.addWidget(wake_label)
         wake_layout.addWidget(self.wake_time)
-        input_layout.addWidget(wake_widget)
-        # 添加按钮
-        add_btn = QPushButton("添加记录 ✍️")
-        add_btn.clicked.connect(self.add_record)
-        add_btn.setStyleSheet("color: #22223b;")  # 设置按钮文字颜色为Space cadet
-        input_layout.addWidget(add_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         
-        # 备注输入
-        note_widget = QWidget()
-        note_layout = QVBoxLayout(note_widget)
-        note_label = QLabel("备注:")
-        self.note_edit = QLineEdit()  # 添加这个类导入
-        self.note_edit.setPlaceholderText("添加今日睡眠备注...")  # 设置占位符文本
+        time_layout.addWidget(sleep_widget)
+        time_layout.addWidget(wake_widget)
+        input_layout.addWidget(time_group)
+        
+        # 备注组
+        note_group = QGroupBox("备注")
+        note_layout = QVBoxLayout(note_group)
+        self.note_edit = QLineEdit()
+        self.note_edit.setPlaceholderText("添加今日睡眠备注...")
+        self.note_edit.setMinimumWidth(200)  # 设置最小宽度
         self.note_edit.setStyleSheet("""
             QLineEdit {
-                padding: 5px;
+                padding: 8px;
                 border: 2px solid #9a8c98;
                 border-radius: 5px;
                 background: white;
-                min-width: 200px;
+                min-height: 30px;
             }
         """)
-        note_layout.addWidget(note_label)
         note_layout.addWidget(self.note_edit)
-        input_layout.addWidget(note_widget)
+        input_layout.addWidget(note_group)
         
-        layout.addWidget(input_container)
+        # 添加按钮
+        add_btn = QPushButton("添加记录 ✍️")
+        add_btn.clicked.connect(self.add_record)
+        add_btn.setStyleSheet("""
+            QPushButton {
+                min-height: 40px;
+                font-size: 15px;
+            }
+        """)
+        input_layout.addWidget(add_btn, alignment=Qt.AlignmentFlag.AlignBottom)
         
-        # 表格样式优化
+        record_layout.addWidget(input_group)
+        
+        # 添加表格到滚动区域
+        table_group = QGroupBox("历史记录")
+        table_layout = QVBoxLayout(table_group)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+            }
+        """)
+        
         self.table = QTableWidget()
-        self.table.setColumnCount(6)  # 改为6列
+        self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["日期", "睡眠时间", "起床时间", "睡眠时长", "获得成就", "备注"])
         self.table.setAlternatingRowColors(True)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().setVisible(False)
-        layout.addWidget(self.table)
         
-        # 功能按钮区域
-        btn_container = QWidget()
-        btn_container.setStyleSheet("""
-            QWidget {
-                background-color: white;
-                border: 1px solid #c9ada7;  /* Pale Dogwood */
-                border-radius: 10px;
-                padding: 10px;
-            }
-        """)
-        btn_layout = QHBoxLayout(btn_container)
-        btn_layout.setSpacing(15)
+        table_layout.addWidget(self.table)
+        record_layout.addWidget(table_group)
+        
+        # 统计分析标签页
+        analysis_tab = QWidget()
+        analysis_layout = QVBoxLayout(analysis_tab)
+        
+        # 功能按钮组
+        buttons_group = QGroupBox("功能")
+        buttons_layout = QHBoxLayout(buttons_group)
         
         generate_report_btn = QPushButton("生成报告 📊")
         generate_report_btn.clicked.connect(self.generate_report)
-        generate_report_btn.setStyleSheet("color: #22223b;")  # 设置按钮文字颜色为Space cadet
-        btn_layout.addWidget(generate_report_btn)
+        buttons_layout.addWidget(generate_report_btn)
         
         view_achievements_btn = QPushButton("查看成就 🏆")
         view_achievements_btn.clicked.connect(self.view_achievements)
-        view_achievements_btn.setStyleSheet("color: #22223b;")  # 设置按钮文字颜色为Space cadet
-        btn_layout.addWidget(view_achievements_btn)
+        buttons_layout.addWidget(view_achievements_btn)
         
-        layout.addWidget(btn_container)
+        analysis_layout.addWidget(buttons_group)
+        
+        # 添加标签页
+        tab_widget.addTab(record_tab, "记录睡眠 📝")
+        tab_widget.addTab(analysis_tab, "统计分析 📊")
+        
+        main_layout.addWidget(tab_widget)
         
         self.update_table()
         
@@ -545,6 +601,15 @@ class SleepTracker(QMainWindow):
             # 显示备注
             note = record.get("note", "")  # 使用get方法避免旧数据没有note字段的情况
             self.table.setItem(i, 5, QTableWidgetItem(note))
+
+        # 设置表格列宽度比例
+        header = self.table.horizontalHeader()
+        header.resizeSection(0, 100)  # 日期
+        header.resizeSection(1, 80)   # 睡眠时间
+        header.resizeSection(2, 80)   # 起床时间
+        header.resizeSection(3, 80)   # 睡眠时长
+        header.resizeSection(4, 120)  # 获得成就
+        header.setStretchLastSection(True)  # 备注列自动占用剩余空间
 
     def view_achievements(self):
         # 统计已获得的成就
