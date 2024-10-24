@@ -71,6 +71,86 @@ class TimeInputWidget(QWidget):
     def time(self):
         return QTime(self.hour_spin.value(), self.minute_spin.value())
 
+# 添加新的 DateInputWidget 类
+class DateInputWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        current_date = QDate.currentDate()
+        
+        self.year_spin = QSpinBox()
+        self.year_spin.setRange(2000, 2100)
+        self.year_spin.setValue(current_date.year())
+        self.year_spin.setFixedWidth(80)
+        
+        self.month_spin = QSpinBox()
+        self.month_spin.setRange(1, 12)
+        self.month_spin.setValue(current_date.month())
+        self.month_spin.setFixedWidth(60)
+        
+        self.day_spin = QSpinBox()
+        self.day_spin.setRange(1, 31)
+        self.day_spin.setValue(current_date.day())
+        self.day_spin.setFixedWidth(60)
+        
+        separator1 = QLabel("-")
+        separator2 = QLabel("-")
+        
+        layout.addWidget(self.year_spin)
+        layout.addWidget(separator1)
+        layout.addWidget(self.month_spin)
+        layout.addWidget(separator2)
+        layout.addWidget(self.day_spin)
+        
+        # 设置样式
+        self.setStyleSheet("""
+            QSpinBox {
+                padding: 5px;
+                border: 2px solid #9a8c98;
+                border-radius: 5px;
+                background: white;
+            }
+            QSpinBox::up-button, QSpinBox::down-button {
+                width: 20px;
+            }
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                margin: 0 5px;
+            }
+        """)
+        
+        # 添加月份变化时更新天数的逻辑
+        self.month_spin.valueChanged.connect(self.update_days)
+        self.year_spin.valueChanged.connect(self.update_days)
+    
+    def update_days(self):
+        year = self.year_spin.value()
+        month = self.month_spin.value()
+        current_day = self.day_spin.value()
+        
+        # 获取该月的天数
+        days_in_month = QDate(year, month, 1).daysInMonth()
+        
+        # 更新日期范围
+        self.day_spin.setRange(1, days_in_month)
+        
+        # 如果当前日期超过了新的最大天数,则设置为最大天数
+        if current_day > days_in_month:
+            self.day_spin.setValue(days_in_month)
+    
+    def date(self):
+        return QDate(self.year_spin.value(), 
+                    self.month_spin.value(), 
+                    self.day_spin.value())
+    
+    def setDate(self, date):
+        self.year_spin.setValue(date.year())
+        self.month_spin.setValue(date.month())
+        self.day_spin.setValue(date.day())
+
 class SleepTracker(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -188,7 +268,7 @@ class SleepTracker(QMainWindow):
         date_widget = QWidget()
         date_layout = QVBoxLayout(date_widget)
         date_label = QLabel("日期:")
-        self.date_edit = QDateEdit()
+        self.date_edit = DateInputWidget()  # 使用新的 DateInputWidget
         self.date_edit.setDate(QDate.currentDate())
         date_layout.addWidget(date_label)
         date_layout.addWidget(self.date_edit)
